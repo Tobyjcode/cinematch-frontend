@@ -7,7 +7,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  async function handleLogin() {
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+
     try {
       await login(username, password);
       const user = await getMe();
@@ -20,36 +22,38 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: "400px", margin: "auto", marginTop: "100px" }}>
-      <h1>Login</h1>
+    <main className="auth-page">
+      <section className="auth-card">
+        <p className="eyebrow">Cinematch</p>
+        <h1>Welcome back</h1>
+        <p className="auth-subtitle">Log in to continue browsing movies.</p>
 
-      <input
-        type="text"
-        placeholder="Username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        style={{ display: "block", width: "100%", marginBottom: "10px" }}
-      />
+        <form className="auth-form" onSubmit={handleLogin}>
+          <input
+            className="auth-input"
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
 
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={{ display: "block", width: "100%", marginBottom: "10px" }}
-      />
+          <input
+            className="auth-input"
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
-      <button
-        onClick={handleLogin}
-        style={{ width: "100%", marginBottom: "10px" }}
-      >
-        Login
-      </button>
+          <button className="auth-button" type="submit">
+            Login
+          </button>
+        </form>
 
-      {}
-      <p style={{ textAlign: "center" }}>
-        No account? <Link to="/register">Sign up</Link>
-      </p>
-    </div>
+        <p className="auth-switch">
+          No account? <Link to="/register">Sign up</Link>
+        </p>
+      </section>
+    </main>
   );
 }

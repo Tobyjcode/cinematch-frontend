@@ -1,12 +1,22 @@
-import { apiFetch } from "./client";
+// src/api/auth.ts
 
+const BASE_URL = "http://localhost:8080";
+
+// 🔥 REGISTER (fixed JSON issue)
 export async function register(
   username: string,
   password: string
 ): Promise<void> {
-  const response = await apiFetch("/auth/register", {
+  const response = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
-    body: JSON.stringify({ username, password }),
+    headers: {
+      "Content-Type": "application/json", // ✅ REQUIRED
+    },
+    credentials: "include",
+    body: JSON.stringify({
+      username,
+      password,
+    }),
   });
 
   if (!response.ok) {
@@ -14,13 +24,17 @@ export async function register(
   }
 }
 
-export async function login(username: string, password: string): Promise<void> {
-  const response = await fetch("http://localhost:8080/login", {
+// 🔐 LOGIN (Spring Security form login)
+export async function login(
+  username: string,
+  password: string
+): Promise<void> {
+  const response = await fetch(`${BASE_URL}/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    credentials: "include",
+    credentials: "include", // ✅ important for session
     body: new URLSearchParams({
       username,
       password,
@@ -32,8 +46,11 @@ export async function login(username: string, password: string): Promise<void> {
   }
 }
 
-export async function getMe() {
-  const response = await apiFetch("/auth/me");
+// 👤 GET CURRENT USER
+export async function getMe(): Promise<string> {
+  const response = await fetch(`${BASE_URL}/auth/me`, {
+    credentials: "include",
+  });
 
   if (!response.ok) {
     throw new Error("Not authenticated");
@@ -42,9 +59,11 @@ export async function getMe() {
   return response.text();
 }
 
+// 🚪 LOGOUT
 export async function logout(): Promise<void> {
-  const response = await apiFetch("/logout", {
+  const response = await fetch(`${BASE_URL}/logout`, {
     method: "POST",
+    credentials: "include",
   });
 
   if (!response.ok) {
