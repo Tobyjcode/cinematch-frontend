@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { login, getMe } from "../api/auth";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -8,20 +8,19 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   async function handleLogin() {
-  try {
-    await login(username, password);
-    const user = await getMe();
-    console.log("Logged in user:", user);
-    alert("Login success");
-    navigate("/movies");
-  } catch (error) {
-    console.error("REAL LOGIN ERROR:", error);
-    alert("Login failed");
+    try {
+      await login(username, password);
+      const user = await getMe();
+      console.log("Logged in user:", user);
+      navigate("/movies");
+    } catch (error) {
+      console.error("REAL LOGIN ERROR:", error);
+      alert("Login failed");
+    }
   }
-}
 
   return (
-    <div>
+    <div style={{ maxWidth: "400px", margin: "auto", marginTop: "100px" }}>
       <h1>Login</h1>
 
       <input
@@ -29,6 +28,7 @@ export default function LoginPage() {
         placeholder="Username"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
+        style={{ display: "block", width: "100%", marginBottom: "10px" }}
       />
 
       <input
@@ -36,9 +36,20 @@ export default function LoginPage() {
         placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        style={{ display: "block", width: "100%", marginBottom: "10px" }}
       />
 
-      <button onClick={handleLogin}>Login</button>
+      <button
+        onClick={handleLogin}
+        style={{ width: "100%", marginBottom: "10px" }}
+      >
+        Login
+      </button>
+
+      {}
+      <p style={{ textAlign: "center" }}>
+        No account? <Link to="/register">Sign up</Link>
+      </p>
     </div>
   );
 }
