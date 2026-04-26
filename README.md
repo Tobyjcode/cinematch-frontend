@@ -1,3 +1,52 @@
+# CineMatch Frontend
+
+## API Configuration
+
+This app supports two API base URL modes:
+
+- Development (recommended):
+  the frontend calls `/api/*`, and Vite proxies requests to the backend.
+- Production/non-dev:
+  the frontend calls `http://<current-hostname>:8080` by default.
+- Optional override via environment variable:
+  set `VITE_API_BASE_URL` in a `.env` file for non-dev mode.
+
+The Vite proxy target can be configured with `VITE_PROXY_TARGET` (defaults to `http://localhost:8080`).
+
+Example:
+
+```env
+VITE_API_BASE_URL=http://localhost:8080
+VITE_PROXY_TARGET=http://localhost:8080
+```
+
+An `.env.example` file is included as a template.
+
+## Access From Phone Or Internet
+
+Use this if you want other people to open your running app from a phone or public link.
+
+1. Start your backend on port 8080.
+2. Start frontend in fixed host mode:
+
+```bash
+npm run dev:host
+```
+
+3. For same Wi-Fi devices, share the Vite Network URL.
+4. For internet sharing, open a public tunnel:
+
+```bash
+npm run tunnel
+```
+
+The tunnel command returns a public URL you can share.
+
+Notes:
+- Keep both terminal commands running while people use the app.
+- API requests are proxied through the frontend server (`/api`), so browser CORS is avoided in dev.
+- If backend is on another host, set `VITE_PROXY_TARGET` in `.env` and restart dev server.
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

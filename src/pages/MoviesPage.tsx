@@ -60,6 +60,7 @@ function parseGenres(genres?: string | GenreObject[]) {
 export default function MoviesPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -71,6 +72,7 @@ export default function MoviesPage() {
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
 
     getMovies({
       page,
@@ -90,7 +92,12 @@ export default function MoviesPage() {
         setMovies(data.content || []);
         setTotalPages(data.totalPages ?? 1);
       })
-      .catch((err) => console.error(err))
+      .catch((err: unknown) => {
+        console.error(err);
+        setMovies([]);
+        setTotalPages(1);
+        setError(err instanceof Error ? err.message : "Failed to load movies");
+      })
       .finally(() => setLoading(false));
   }, [page, search, selectedGenre, sortBy, direction]);
 
@@ -205,8 +212,10 @@ export default function MoviesPage() {
 
       {loading ? (
         <div className="status-card">Loading movies...</div>
+      ) : error ? (
+        <div className="status-card">{error}</div>
       ) : movies.length === 0 ? (
-        <div className="status-card">No movies found.</div>
+        <div className="status-card">No movies in database yet. Add or import movies first.</div>
       ) : (
         <div className="movie-grid">
           {movies.map((movie) => {

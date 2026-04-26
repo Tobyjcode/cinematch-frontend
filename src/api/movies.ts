@@ -28,7 +28,8 @@ export async function getMovies(query: MoviesQuery = {}) {
   const response = await apiFetch(`/movies?${params.toString()}`);
 
   if (!response.ok) {
-    throw new Error("Failed to fetch movies");
+    const details = await response.text();
+    throw new Error(`Failed to fetch movies (${response.status})${details ? `: ${details}` : ""}`);
   }
 
   return response.json();
