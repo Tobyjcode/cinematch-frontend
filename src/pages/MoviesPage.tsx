@@ -2,10 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import logo from "../assets/cinematchlogo.png";
 import { getMovies } from "../api/movies";
+import {
+  getWatchlist,
+  addToWatchlist,
+  removeFromWatchlist,
+} from "../api/watchlist";
 import MovieCard, { type Movie } from "../components/MovieCard";
 
 const PAGE_SIZE = 100;
-const WATCHLIST_KEY = "cinematch-watchlist";
 
 type Genre = {
   id?: number;
@@ -30,14 +34,9 @@ function parseGenres(genres?: string | Genre[]) {
     : genres.split(",").map((genre) => genre.trim()).filter(Boolean);
 }
 
-function getSavedWatchlist() {
-  const saved = localStorage.getItem(WATCHLIST_KEY);
-  return saved ? (JSON.parse(saved) as Movie[]) : [];
-}
-
 export default function MoviesPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [watchlist, setWatchlist] = useState<Movie[]>(getSavedWatchlist);
+  const [watchlist, setWatchlist] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,10 +49,14 @@ export default function MoviesPage() {
   const [sortBy, setSortBy] = useState("title");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
 
+  // 🔥 Load watchlist from backend
   useEffect(() => {
-    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlist));
-  }, [watchlist]);
+    getWatchlist()
+      .then(setWatchlist)
+      .catch((err) => console.error(err));
+  }, []);
 
+  // 🎬 Load movies
   useEffect(() => {
     let cancelled = false;
 
@@ -120,12 +123,23 @@ export default function MoviesPage() {
     setSearch(searchInput);
   }
 
-  function toggleWatchlist(movie: Movie) {
-    setWatchlist((current) =>
-      current.some((item) => item.id === movie.id)
-        ? current.filter((item) => item.id !== movie.id)
-        : [...current, movie]
-    );
+  // 🔥 Backend toggle
+  async function toggleWatchlist(movie: Movie) {
+    const isAlreadyAdded = watchlist.some((item) => item.id === movie.id);
+
+    try {
+      if (isAlreadyAdded) {
+        await removeFromWatchlist(movie.id);
+        setWatchlist((current) =>
+          current.filter((item) => item.id !== movie.id)
+        );
+      } else {
+        const savedMovie = await addToWatchlist(movie.id);
+        setWatchlist((current) => [...current, savedMovie]);
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   return (
@@ -203,7 +217,7 @@ export default function MoviesPage() {
       <div className="pagination-bar">
         <button
           className="page-button"
-          onClick={() => setPage((currentPage) => Math.max(currentPage - 1, 0))}
+          onClick={() => setPage((p) => Math.max(p - 1, 0))}
           disabled={page === 0}
         >
           Previous
@@ -216,7 +230,7 @@ export default function MoviesPage() {
         <button
           className="page-button"
           onClick={() =>
-            setPage((currentPage) => Math.min(currentPage + 1, totalPages - 1))
+            setPage((p) => Math.min(p + 1, totalPages - 1))
           }
           disabled={page >= totalPages - 1}
         >

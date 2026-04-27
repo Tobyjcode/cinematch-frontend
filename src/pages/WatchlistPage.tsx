@@ -1,24 +1,31 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import MovieCard, { type Movie } from "../components/MovieCard";
-
-const WATCHLIST_KEY = "cinematch-watchlist";
+import { getWatchlist, addToWatchlist, removeFromWatchlist } from "../api/watchlist";
 
 export default function WatchlistPage() {
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem(WATCHLIST_KEY);
-    setWatchlist(saved ? JSON.parse(saved) : []);
+    getWatchlist()
+      .then(setWatchlist)
+      .catch((err) => {
+        console.error(err);
+        setError("Failed to load watchlist");
+      });
   }, []);
 
-  function toggleWatchlist(movie: Movie) {
-    const updated = watchlist.some((item) => item.id === movie.id)
-      ? watchlist.filter((item) => item.id !== movie.id)
-      : [...watchlist, movie];
+  async function toggleWatchlist(movie: Movie) {
+    const isAlreadyAdded = watchlist.some((item) => item.id === movie.id);
 
-    setWatchlist(updated);
-    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(updated));
+    if (isAlreadyAdded) {
+      await removeFromWatchlist(movie.id);
+      setWatchlist((current) => current.filter((item) => item.id !== movie.id));
+    } else {
+      const savedMovie = await addToWatchlist(movie.id);
+      setWatchlist((current) => [...current, savedMovie]);
+    }
   }
 
   return (
@@ -31,10 +38,12 @@ export default function WatchlistPage() {
 
       <div className="movies-header">
         <h1>Your Watchlist</h1>
-        <p className="subtitle">Movies you saved for later</p>
+        <p className="subtitle">Movies saved to your account</p>
       </div>
 
-      {watchlist.length === 0 ? (
+      {error ? (
+        <div className="status-card">{error}</div>
+      ) : watchlist.length === 0 ? (
         <div className="status-card">Your watchlist is empty.</div>
       ) : (
         <div className="movie-grid">
