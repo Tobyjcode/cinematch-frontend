@@ -181,4 +181,29 @@
     right: 0;
     border-right-color: var(--border);
   }
+  
 }
+
+.app-header {
+  margin-bottom: 1px;
+}
+
+.brand-logo {
+  width: 13px;
+  height: auto;
+}
+
+.movies-header {
+  display: block;
+  margin-bottom: 1px;
+}
+
+.movies-header h1 {
+  margin: 0;
+}
+
+.subtitle {
+  margin-top: 6px;
+}
+
+

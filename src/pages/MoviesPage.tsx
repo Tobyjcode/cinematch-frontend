@@ -1,66 +1,46 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import logo from "../assets/cinematchlogo.png";
 import { getMovies } from "../api/movies";
+import MovieCard, { type Movie } from "../components/MovieCard";
 
-type GenreObject = {
+const PAGE_SIZE = 100;
+const WATCHLIST_KEY = "cinematch-watchlist";
+
+type Genre = {
   id?: number;
   name?: string;
 };
 
-type Movie = {
-  id: number;
-  tmdbId?: number;
-  title: string;
-  overview: string;
-  posterPath?: string | null;
-  genres?: string | GenreObject[];
-  voteAverage?: number;
-  popularity?: number;
-};
-
-type MoviePageResponse = {
-  content: Movie[];
-  totalPages?: number;
-};
-
-const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
-const PAGE_SIZE = 100;
-
-function getPosterUrl(posterPath?: string | null) {
-  if (!posterPath || !posterPath.startsWith("/")) {
-    return null;
-  }
-
-  return `${IMAGE_BASE}${posterPath}?v=1`;
-}
-
-function parseGenres(genres?: string | GenreObject[]) {
+function parseGenres(genres?: string | Genre[]) {
   if (!genres) return [];
 
   if (Array.isArray(genres)) {
     return genres
-      .map((genre) => genre?.name)
+      .map((genre) => genre.name)
       .filter((name): name is string => Boolean(name));
   }
 
-  const extractedNames = [...genres.matchAll(/name['"]?\s*:\s*'([^']+)'/g)].map(
+  const extracted = [...genres.matchAll(/name['"]?\s*:\s*'([^']+)'/g)].map(
     (match) => match[1]
   );
 
-  if (extractedNames.length > 0) {
-    return extractedNames;
-  }
+  return extracted.length
+    ? extracted
+    : genres.split(",").map((genre) => genre.trim()).filter(Boolean);
+}
 
-  return genres
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
+function getSavedWatchlist() {
+  const saved = localStorage.getItem(WATCHLIST_KEY);
+  return saved ? (JSON.parse(saved) as Movie[]) : [];
 }
 
 export default function MoviesPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
+  const [watchlist, setWatchlist] = useState<Movie[]>(getSavedWatchlist);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -71,8 +51,11 @@ export default function MoviesPage() {
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify(watchlist));
+  }, [watchlist]);
+
+  useEffect(() => {
+    let cancelled = false;
 
     getMovies({
       page,
@@ -82,64 +65,84 @@ export default function MoviesPage() {
       sortBy,
       direction,
     })
-      .then((data: MoviePageResponse | Movie[]) => {
+      .then((data) => {
+        if (cancelled) return;
+
+        setError(null);
+
         if (Array.isArray(data)) {
           setMovies(data);
           setTotalPages(1);
-          return;
+        } else {
+          setMovies(data.content ?? []);
+          setTotalPages(data.totalPages ?? 1);
         }
-
-        setMovies(data.content || []);
-        setTotalPages(data.totalPages ?? 1);
       })
       .catch((err: unknown) => {
         console.error(err);
+        if (cancelled) return;
+
         setMovies([]);
         setTotalPages(1);
         setError(err instanceof Error ? err.message : "Failed to load movies");
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [page, search, selectedGenre, sortBy, direction]);
 
+  const watchlistIds = useMemo(
+    () => new Set(watchlist.map((movie) => movie.id)),
+    [watchlist]
+  );
+
   const allGenres = useMemo(() => {
-    const genreSet = new Set<string>();
+    const set = new Set<string>();
 
     movies.forEach((movie) => {
-      parseGenres(movie.genres).forEach((genre) => genreSet.add(genre));
+      parseGenres(movie.genres).forEach((genre) => set.add(genre));
     });
 
-    return ["All", ...Array.from(genreSet).sort()];
+    return ["All", ...Array.from(set).sort()];
   }, [movies]);
 
-  function handleSearchSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function resetPage() {
     setPage(0);
+  }
+
+  function handleSearchSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    resetPage();
     setSearch(searchInput);
   }
 
-  function handleGenreChange(value: string) {
-    setPage(0);
-    setSelectedGenre(value);
-  }
-
-  function handleSortChange(value: string) {
-    setPage(0);
-    setSortBy(value);
-  }
-
-  function handleDirectionChange(value: "asc" | "desc") {
-    setPage(0);
-    setDirection(value);
+  function toggleWatchlist(movie: Movie) {
+    setWatchlist((current) =>
+      current.some((item) => item.id === movie.id)
+        ? current.filter((item) => item.id !== movie.id)
+        : [...current, movie]
+    );
   }
 
   return (
     <div className="movies-page">
+      <div className="app-header">
+        <Link to="/movies" className="brand-link">
+          <img className="brand-logo" src={logo} alt="Cinematch logo" />
+        </Link>
+
+        <Link to="/watchlist" className="watchlist-link">
+          Watchlist ({watchlist.length})
+        </Link>
+      </div>
+
       <div className="movies-header">
-        <div>
-          <p className="eyebrow">Cinematch</p>
-          <h1>Movies</h1>
-          <p className="subtitle">Browse your movie collection</p>
-        </div>
+        <h1>Movies</h1>
+        <p className="subtitle">Browse your movie collection</p>
       </div>
 
       <form className="filters-bar" onSubmit={handleSearchSubmit}>
@@ -148,7 +151,7 @@ export default function MoviesPage() {
           type="text"
           placeholder="Search movies..."
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          onChange={(event) => setSearchInput(event.target.value)}
         />
 
         <button className="page-button" type="submit">
@@ -158,7 +161,10 @@ export default function MoviesPage() {
         <select
           className="filter-select"
           value={selectedGenre}
-          onChange={(e) => handleGenreChange(e.target.value)}
+          onChange={(event) => {
+            resetPage();
+            setSelectedGenre(event.target.value);
+          }}
         >
           {allGenres.map((genre) => (
             <option key={genre} value={genre}>
@@ -170,7 +176,10 @@ export default function MoviesPage() {
         <select
           className="filter-select"
           value={sortBy}
-          onChange={(e) => handleSortChange(e.target.value)}
+          onChange={(event) => {
+            resetPage();
+            setSortBy(event.target.value);
+          }}
         >
           <option value="title">Sort: Title</option>
           <option value="voteAverage">Sort: Rating</option>
@@ -181,7 +190,10 @@ export default function MoviesPage() {
         <select
           className="filter-select"
           value={direction}
-          onChange={(e) => handleDirectionChange(e.target.value as "asc" | "desc")}
+          onChange={(event) => {
+            resetPage();
+            setDirection(event.target.value as "asc" | "desc");
+          }}
         >
           <option value="asc">Ascending</option>
           <option value="desc">Descending</option>
@@ -191,7 +203,7 @@ export default function MoviesPage() {
       <div className="pagination-bar">
         <button
           className="page-button"
-          onClick={() => setPage((prev) => Math.max(prev - 1, 0))}
+          onClick={() => setPage((currentPage) => Math.max(currentPage - 1, 0))}
           disabled={page === 0}
         >
           Previous
@@ -203,7 +215,9 @@ export default function MoviesPage() {
 
         <button
           className="page-button"
-          onClick={() => setPage((prev) => Math.min(prev + 1, totalPages - 1))}
+          onClick={() =>
+            setPage((currentPage) => Math.min(currentPage + 1, totalPages - 1))
+          }
           disabled={page >= totalPages - 1}
         >
           Next
@@ -215,60 +229,19 @@ export default function MoviesPage() {
       ) : error ? (
         <div className="status-card">{error}</div>
       ) : movies.length === 0 ? (
-        <div className="status-card">No movies in database yet. Add or import movies first.</div>
+        <div className="status-card">
+          No movies in database yet. Add or import movies first.
+        </div>
       ) : (
         <div className="movie-grid">
-          {movies.map((movie) => {
-            const posterUrl = getPosterUrl(movie.posterPath);
-
-            return (
-              <Link
-                className="movie-card-link"
-                to={`/movies/${movie.id}`}
-                key={`${movie.id}-${movie.posterPath ?? "no-poster"}`}
-              >
-                <article className="movie-card">
-                  <div className="poster-wrap">
-                    {posterUrl ? (
-                      <img
-                        className="movie-poster"
-                        src={posterUrl}
-                        alt={movie.title}
-                        loading="lazy"
-                        onError={(e) => {
-                          const img = e.currentTarget;
-                          if (img.dataset.broken === "true") return;
-                          img.dataset.broken = "true";
-                          img.onerror = null;
-                          img.src = "/no-poster.png";
-                        }}
-                      />
-                    ) : (
-                      <div className="no-poster">No poster</div>
-                    )}
-                  </div>
-
-                  <div className="movie-content">
-                    <h2 className="movie-title">{movie.title}</h2>
-
-                    {parseGenres(movie.genres).length > 0 && (
-                      <div className="card-genre-list">
-                        {parseGenres(movie.genres)
-                          .slice(0, 3)
-                          .map((genre) => (
-                            <span className="genre-chip small" key={genre}>
-                              {genre}
-                            </span>
-                          ))}
-                      </div>
-                    )}
-
-                    <p className="movie-overview">{movie.overview}</p>
-                  </div>
-                </article>
-              </Link>
-            );
-          })}
+          {movies.map((movie) => (
+            <MovieCard
+              key={movie.id}
+              movie={movie}
+              isInWatchlist={watchlistIds.has(movie.id)}
+              onToggleWatchlist={toggleWatchlist}
+            />
+          ))}
         </div>
       )}
     </div>
