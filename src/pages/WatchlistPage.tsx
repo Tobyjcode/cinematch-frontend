@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import MovieCard, { type Movie } from "../components/MovieCard";
-import { getWatchlist, addToWatchlist, removeFromWatchlist } from "../api/watchlist";
+import { getWatchlist, removeFromWatchlist } from "../api/watchlist";
+import MovieCard from "../components/MovieCard";
+import type { Movie } from "../types/movie";
 
 export default function WatchlistPage() {
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
@@ -16,15 +17,16 @@ export default function WatchlistPage() {
       });
   }, []);
 
-  async function toggleWatchlist(movie: Movie) {
-    const isAlreadyAdded = watchlist.some((item) => item.id === movie.id);
-
-    if (isAlreadyAdded) {
+  async function removeMovie(movie: Movie) {
+    try {
       await removeFromWatchlist(movie.id);
-      setWatchlist((current) => current.filter((item) => item.id !== movie.id));
-    } else {
-      const savedMovie = await addToWatchlist(movie.id);
-      setWatchlist((current) => [...current, savedMovie]);
+
+      setWatchlist((current) =>
+        current.filter((item) => item.id !== movie.id)
+      );
+    } catch (err) {
+      console.error(err);
+      setError("Failed to remove movie from watchlist");
     }
   }
 
@@ -51,8 +53,8 @@ export default function WatchlistPage() {
             <MovieCard
               key={movie.id}
               movie={movie}
-              isInWatchlist={true}
-              onToggleWatchlist={toggleWatchlist}
+              isInWatchlist
+              onToggleWatchlist={removeMovie}
             />
           ))}
         </div>

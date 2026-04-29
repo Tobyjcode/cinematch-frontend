@@ -1,38 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import logo from "../assets/cinematchlogo.png";
 import { getMovies } from "../api/movies";
 import {
-  getWatchlist,
   addToWatchlist,
+  getWatchlist,
   removeFromWatchlist,
 } from "../api/watchlist";
-import MovieCard, { type Movie } from "../components/MovieCard";
+import MovieCard from "../components/MovieCard";
+import type { Movie } from "../types/movie";
+import { parseGenres } from "../utils/movie";
 
 const PAGE_SIZE = 100;
-
-type Genre = {
-  id?: number;
-  name?: string;
-};
-
-function parseGenres(genres?: string | Genre[]) {
-  if (!genres) return [];
-
-  if (Array.isArray(genres)) {
-    return genres
-      .map((genre) => genre.name)
-      .filter((name): name is string => Boolean(name));
-  }
-
-  const extracted = [...genres.matchAll(/name['"]?\s*:\s*'([^']+)'/g)].map(
-    (match) => match[1]
-  );
-
-  return extracted.length
-    ? extracted
-    : genres.split(",").map((genre) => genre.trim()).filter(Boolean);
-}
 
 export default function MoviesPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -49,14 +28,12 @@ export default function MoviesPage() {
   const [sortBy, setSortBy] = useState("title");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
 
-  // 🔥 Load watchlist from backend
   useEffect(() => {
     getWatchlist()
       .then(setWatchlist)
-      .catch((err) => console.error(err));
+      .catch(console.error);
   }, []);
 
-  // 🎬 Load movies
   useEffect(() => {
     let cancelled = false;
 
@@ -82,9 +59,9 @@ export default function MoviesPage() {
         }
       })
       .catch((err: unknown) => {
-        console.error(err);
         if (cancelled) return;
 
+        console.error(err);
         setMovies([]);
         setTotalPages(1);
         setError(err instanceof Error ? err.message : "Failed to load movies");
@@ -104,39 +81,34 @@ export default function MoviesPage() {
   );
 
   const allGenres = useMemo(() => {
-    const set = new Set<string>();
-
-    movies.forEach((movie) => {
-      parseGenres(movie.genres).forEach((genre) => set.add(genre));
-    });
-
-    return ["All", ...Array.from(set).sort()];
+    const genres = movies.flatMap((movie) => parseGenres(movie.genres));
+    return ["All", ...Array.from(new Set(genres)).sort()];
   }, [movies]);
 
   function resetPage() {
     setPage(0);
   }
 
-  function handleSearchSubmit(event: React.FormEvent) {
+  function handleSearchSubmit(event: FormEvent) {
     event.preventDefault();
     resetPage();
-    setSearch(searchInput);
+    setSearch(searchInput.trim());
   }
 
-  // 🔥 Backend toggle
   async function toggleWatchlist(movie: Movie) {
-    const isAlreadyAdded = watchlist.some((item) => item.id === movie.id);
+    const isInWatchlist = watchlistIds.has(movie.id);
 
     try {
-      if (isAlreadyAdded) {
+      if (isInWatchlist) {
         await removeFromWatchlist(movie.id);
         setWatchlist((current) =>
           current.filter((item) => item.id !== movie.id)
         );
-      } else {
-        const savedMovie = await addToWatchlist(movie.id);
-        setWatchlist((current) => [...current, savedMovie]);
+        return;
       }
+
+      const savedMovie = await addToWatchlist(movie.id);
+      setWatchlist((current) => [...current, savedMovie]);
     } catch (err) {
       console.error(err);
     }
@@ -217,7 +189,7 @@ export default function MoviesPage() {
       <div className="pagination-bar">
         <button
           className="page-button"
-          onClick={() => setPage((p) => Math.max(p - 1, 0))}
+          onClick={() => setPage((current) => Math.max(current - 1, 0))}
           disabled={page === 0}
         >
           Previous
@@ -230,7 +202,7 @@ export default function MoviesPage() {
         <button
           className="page-button"
           onClick={() =>
-            setPage((p) => Math.min(p + 1, totalPages - 1))
+            setPage((current) => Math.min(current + 1, totalPages - 1))
           }
           disabled={page >= totalPages - 1}
         >

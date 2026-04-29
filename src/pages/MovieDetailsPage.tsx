@@ -1,76 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getMovieById } from "../api/movies";
-
-type GenreObject = {
-  id?: number;
-  name?: string;
-};
-
-type Movie = {
-  id: number;
-  tmdbId?: number;
-  title: string;
-  originalTitle?: string;
-  overview: string;
-  posterPath?: string | null;
-  releaseDate?: string;
-  originalLanguage?: string;
-  voteAverage?: number;
-  voteCount?: number;
-  popularity?: number;
-  runtime?: number;
-  genres?: string | GenreObject[];
-};
-
-const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
-
-function getPosterUrl(posterPath?: string | null) {
-  if (!posterPath || !posterPath.startsWith("/")) {
-    return null;
-  }
-
-  return `${IMAGE_BASE}${posterPath}?v=1`;
-}
-
-function parseGenres(genres?: string | GenreObject[]) {
-  if (!genres) return [];
-
-  if (Array.isArray(genres)) {
-    return genres
-      .map((genre) => genre?.name)
-      .filter((name): name is string => Boolean(name));
-  }
-
-  const extractedNames = [...genres.matchAll(/name['"]?\s*:\s*'([^']+)'/g)].map(
-    (match) => match[1]
-  );
-
-  if (extractedNames.length > 0) {
-    return extractedNames;
-  }
-
-  return genres
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
+import type { Movie } from "../types/movie";
+import { getPosterUrl, parseGenres } from "../utils/movie";
 
 export default function MovieDetailsPage() {
   const { id } = useParams();
   const [movie, setMovie] = useState<Movie | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(id));
 
   useEffect(() => {
     if (!id) return;
 
     getMovieById(id)
       .then(setMovie)
-      .catch((err) => console.error(err))
+      .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
 
-  const genreNames = useMemo(() => parseGenres(movie?.genres), [movie?.genres]);
+  const genres = useMemo(() => parseGenres(movie?.genres), [movie?.genres]);
+  const posterUrl = getPosterUrl(movie?.posterPath);
 
   if (loading) {
     return (
@@ -88,8 +37,6 @@ export default function MovieDetailsPage() {
     );
   }
 
-  const posterUrl = getPosterUrl(movie.posterPath);
-
   return (
     <div className="details-page">
       <Link className="back-link" to="/movies">
@@ -103,12 +50,8 @@ export default function MovieDetailsPage() {
               className="details-poster"
               src={posterUrl}
               alt={movie.title}
-              onError={(e) => {
-                const img = e.currentTarget;
-                if (img.dataset.broken === "true") return;
-                img.dataset.broken = "true";
-                img.onerror = null;
-                img.src = "/no-poster.png";
+              onError={(event) => {
+                event.currentTarget.src = "/no-poster.png";
               }}
             />
           ) : (
@@ -121,32 +64,44 @@ export default function MovieDetailsPage() {
           <h1 className="details-title">{movie.title}</h1>
 
           {movie.originalTitle && movie.originalTitle !== movie.title && (
-            <p className="details-subtitle">Original title: {movie.originalTitle}</p>
+            <p className="details-subtitle">
+              Original title: {movie.originalTitle}
+            </p>
           )}
 
           <div className="details-meta">
-            {movie.releaseDate && <span className="badge">Release: {movie.releaseDate}</span>}
-            {movie.runtime && <span className="badge">Runtime: {movie.runtime} min</span>}
+            {movie.releaseDate && (
+              <span className="badge">Release: {movie.releaseDate}</span>
+            )}
+            {movie.runtime && (
+              <span className="badge">Runtime: {movie.runtime} min</span>
+            )}
             {movie.originalLanguage && (
-              <span className="badge">Language: {movie.originalLanguage.toUpperCase()}</span>
+              <span className="badge">
+                Language: {movie.originalLanguage.toUpperCase()}
+              </span>
             )}
           </div>
 
           <div className="details-meta">
             {movie.voteAverage !== undefined && (
-              <span className="badge">Rating: {movie.voteAverage}</span>
+              <span className="badge">
+                Rating: {movie.voteAverage.toFixed(1)}
+              </span>
             )}
             {movie.voteCount !== undefined && (
               <span className="badge">Votes: {movie.voteCount}</span>
             )}
             {movie.popularity !== undefined && (
-              <span className="badge">Popularity: {movie.popularity}</span>
+              <span className="badge">
+                Popularity: {movie.popularity.toFixed(1)}
+              </span>
             )}
           </div>
 
-          {genreNames.length > 0 && (
+          {genres.length > 0 && (
             <div className="genre-list">
-              {genreNames.map((genre) => (
+              {genres.map((genre) => (
                 <span className="genre-chip" key={genre}>
                   {genre}
                 </span>

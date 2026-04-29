@@ -1,3 +1,4 @@
+import type { Movie, MoviePageResponse } from "../types/movie";
 import { apiFetch } from "./client";
 
 export type MoviesQuery = {
@@ -9,7 +10,7 @@ export type MoviesQuery = {
   direction?: "asc" | "desc";
 };
 
-export async function getMovies(query: MoviesQuery = {}) {
+function buildMovieParams(query: MoviesQuery) {
   const params = new URLSearchParams();
 
   params.set("page", String(query.page ?? 0));
@@ -25,22 +26,20 @@ export async function getMovies(query: MoviesQuery = {}) {
     params.set("genre", query.genre.trim());
   }
 
-  const response = await apiFetch(`/movies?${params.toString()}`);
+  return params;
+}
 
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error(`Failed to fetch movies (${response.status})${details ? `: ${details}` : ""}`);
-  }
+export async function getMovies(
+  query: MoviesQuery = {}
+): Promise<MoviePageResponse | Movie[]> {
+  const params = buildMovieParams(query);
+  const response = await apiFetch(`/movies?${params.toString()}`);
 
   return response.json();
 }
 
-export async function getMovieById(id: string | number) {
+export async function getMovieById(id: string | number): Promise<Movie> {
   const response = await apiFetch(`/movies/${id}`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch movie");
-  }
 
   return response.json();
 }

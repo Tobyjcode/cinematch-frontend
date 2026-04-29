@@ -1,34 +1,21 @@
+import type { Movie } from "../types/movie";
 import { apiFetch } from "./client";
-import type { Movie } from "../components/MovieCard";
 
-export async function getWatchlist() {
+export async function getWatchlist(): Promise<Movie[]> {
   const response = await apiFetch("/watchlist");
-
-  if (!response.ok) {
-    throw new Error("Failed to load watchlist");
-  }
-
-  return response.json() as Promise<Movie[]>;
+  return response.json();
 }
 
-export async function addToWatchlist(movieId: number) {
+export async function addToWatchlist(movieId: number): Promise<Movie> {
   const response = await apiFetch(`/watchlist/${movieId}`, {
     method: "POST",
   });
 
-  if (!response.ok) {
-    throw new Error("Failed to add movie to watchlist");
-  }
-
-  return response.json() as Promise<Movie>;
+  return response.json();
 }
 
-export async function removeFromWatchlist(movieId: number) {
-  const response = await apiFetch(`/watchlist/${movieId}`, {
+export async function removeFromWatchlist(movieId: number): Promise<void> {
+  await apiFetch(`/watchlist/${movieId}`, {
     method: "DELETE",
   });
-
-  if (!response.ok) {
-    throw new Error("Failed to remove movie from watchlist");
-  }
 }

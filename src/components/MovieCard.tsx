@@ -1,20 +1,7 @@
-import { Link } from "react-router-dom";
 import { Star } from "lucide-react";
-
-type Genre = {
-  id?: number;
-  name?: string;
-};
-
-export type Movie = {
-  id: number;
-  title: string;
-  overview: string;
-  posterPath?: string | null;
-  genres?: string | Genre[];
-  voteAverage?: number;
-  popularity?: number;
-};
+import { Link } from "react-router-dom";
+import type { Movie } from "../types/movie";
+import { getPosterUrl, parseGenres } from "../utils/movie";
 
 type Props = {
   movie: Movie;
@@ -22,31 +9,11 @@ type Props = {
   onToggleWatchlist: (movie: Movie) => void;
 };
 
-const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
-
-function getPosterUrl(path?: string | null) {
-  return path?.startsWith("/") ? `${IMAGE_BASE}${path}` : null;
-}
-
-function parseGenres(genres?: string | Genre[]) {
-  if (!genres) return [];
-
-  if (Array.isArray(genres)) {
-    return genres
-      .map((genre) => genre.name)
-      .filter((name): name is string => Boolean(name));
-  }
-
-  const extracted = [...genres.matchAll(/name['"]?\s*:\s*'([^']+)'/g)].map(
-    (match) => match[1]
-  );
-
-  return extracted.length
-    ? extracted
-    : genres.split(",").map((genre) => genre.trim()).filter(Boolean);
-}
-
-export default function MovieCard({ movie, isInWatchlist, onToggleWatchlist }: Props) {
+export default function MovieCard({
+  movie,
+  isInWatchlist,
+  onToggleWatchlist,
+}: Props) {
   const posterUrl = getPosterUrl(movie.posterPath);
   const genres = parseGenres(movie.genres);
 
@@ -70,7 +37,7 @@ export default function MovieCard({ movie, isInWatchlist, onToggleWatchlist }: P
 
           {movie.voteAverage != null && (
             <div className="poster-rating">
-              <Star size={14} fill="#ffd166" stroke="#ffd166" />
+              <Star size={14} />
               <span>{movie.voteAverage.toFixed(1)}</span>
             </div>
           )}
@@ -79,8 +46,10 @@ export default function MovieCard({ movie, isInWatchlist, onToggleWatchlist }: P
         <div className="movie-content">
           <h2 className="movie-title">{movie.title}</h2>
 
+          {/* Prevents the card link from opening when clicking the button. */}
           <button
             className={`watchlist-button ${isInWatchlist ? "active" : ""}`}
+            type="button"
             onClick={(event) => {
               event.preventDefault();
               onToggleWatchlist(movie);
