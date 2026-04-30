@@ -14,26 +14,33 @@ import { parseGenres } from "../utils/movie";
 const PAGE_SIZE = 100;
 
 export default function MoviesPage() {
+  // Main movie data
   const [movies, setMovies] = useState<Movie[]>([]);
   const [watchlist, setWatchlist] = useState<Movie[]>([]);
+
+  // UI state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  // Filters
+  const [searchInput, setSearchInput] = useState(""); // raw input field
+  const [search, setSearch] = useState(""); // applied search
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [sortBy, setSortBy] = useState("title");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
 
+  // Load watchlist once on mount
   useEffect(() => {
     getWatchlist()
       .then(setWatchlist)
       .catch(console.error);
   }, []);
 
+  // Fetch movies when filters/pagination change
   useEffect(() => {
     let cancelled = false;
 
@@ -50,6 +57,7 @@ export default function MoviesPage() {
 
         setError(null);
 
+        // Backend can return paginated or flat array
         if (Array.isArray(data)) {
           setMovies(data);
           setTotalPages(1);
@@ -70,16 +78,19 @@ export default function MoviesPage() {
         if (!cancelled) setLoading(false);
       });
 
+    // Prevent state update if component unmounts
     return () => {
       cancelled = true;
     };
   }, [page, search, selectedGenre, sortBy, direction]);
 
+  // Fast lookup for watchlist state
   const watchlistIds = useMemo(
     () => new Set(watchlist.map((movie) => movie.id)),
     [watchlist]
   );
 
+  // Extract unique genres from loaded movies
   const allGenres = useMemo(() => {
     const genres = movies.flatMap((movie) => parseGenres(movie.genres));
     return ["All", ...Array.from(new Set(genres)).sort()];
@@ -89,12 +100,14 @@ export default function MoviesPage() {
     setPage(0);
   }
 
+  // Apply search (prevents API call on every keystroke)
   function handleSearchSubmit(event: FormEvent) {
     event.preventDefault();
     resetPage();
     setSearch(searchInput.trim());
   }
 
+  // Add/remove movie from watchlist
   async function toggleWatchlist(movie: Movie) {
     const isInWatchlist = watchlistIds.has(movie.id);
 
@@ -144,6 +157,7 @@ export default function MoviesPage() {
           Search
         </button>
 
+        {/* Genre filter */}
         <select
           className="filter-select"
           value={selectedGenre}
@@ -159,6 +173,7 @@ export default function MoviesPage() {
           ))}
         </select>
 
+        {/* Sorting options */}
         <select
           className="filter-select"
           value={sortBy}
@@ -173,6 +188,7 @@ export default function MoviesPage() {
           <option value="releaseDate">Sort: Release Date</option>
         </select>
 
+        {/* Sort direction */}
         <select
           className="filter-select"
           value={direction}
@@ -186,6 +202,7 @@ export default function MoviesPage() {
         </select>
       </form>
 
+      {/* Pagination */}
       <div className="pagination-bar">
         <button
           className="page-button"
@@ -210,6 +227,7 @@ export default function MoviesPage() {
         </button>
       </div>
 
+      {/* Content states */}
       {loading ? (
         <div className="status-card">Loading movies...</div>
       ) : error ? (
